@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Co-Cathedral of St. Joseph — 3D 셋 모델</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#050508;color:#eee;font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+  #c{position:absolute;inset:0}
+  #hud{position:absolute;left:0;right:0;bottom:0;background:rgba(8,8,14,.88);border-top:1px solid #2a2a38;padding:10px 16px;backdrop-filter:blur(6px)}
+  #hud h1{font-size:14px;font-weight:700}
+  #hud p{font-size:12px;color:#9a9ab0;margin-top:2px}
+  #ctrl{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+  button{background:#1d1d2a;border:1px solid #3a3a4e;color:#eee;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer}
+  button:hover{background:#2b2b3d}
+  button.on{background:#3b5bff;border-color:#3b5bff}
+  #cueinfo{font-size:12px;color:#ffd76a;margin-left:auto}
+  #help{position:absolute;top:10px;left:12px;font-size:11px;color:#777;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:8px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="c"></div>
+<div id="help">드래그: 회전 · 휠: 줌 · 우드래그: 이동</div>
+<div id="hud">
+  <h1>Co-Cathedral of St. Joseph — Path of Miracles 셋 3D</h1>
+  <p>발다킨 중앙 150" 스크린 + 그린스크린 윙 (실측: 개구부 11.6 × 14.3 ft)</p>
+  <div id="ctrl">
+    <button id="bScreen">스크린: 합성 전</button>
+    <button id="bWings">윙: 그린스크린</button>
+    <button id="bCue">◀ 큐</button>
+    <button id="bCue2">큐 ▶</button>
+    <button id="bTop">위에서 보기</button>
+    <button id="bNave">객석에서 보기</button>
+    <span id="cueinfo"></span>
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050508);
+scene.fog = new THREE.Fog(0x050508, 40, 110);
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 300);
+camera.position.set(0, 4.5, 14);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.getElementById('c').appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 5, -12);
+controls.maxPolarAngle = Math.PI*0.55;
+
+// ---------- lights ----------
+scene.add(new THREE.AmbientLight(0x2a3a66, 0.55));
+const blue = new THREE.PointLight(0x3a5aff, 900, 90); blue.position.set(0, 16, -6); scene.add(blue);
+const warm = new THREE.SpotLight(0xffb36b, 1400, 60, 0.7, 0.5); warm.position.set(0, 14, -20); warm.target.position.set(0,4,-27); scene.add(warm, warm.target);
+const house = new THREE.PointLight(0xffe0b0, 200, 50); house.position.set(0, 8, 8); scene.add(house);
+
+// ---------- materials ----------
+const stoneMat = new THREE.MeshStandardMaterial({color:0x8a7f70, roughness:0.9});
+const darkStone = new THREE.MeshStandardMaterial({color:0x4a443c, roughness:0.95});
+const floorMat = new THREE.MeshStandardMaterial({color:0x2e2a26, roughness:0.35, metalness:0.4});
+const woodMat = new THREE.MeshStandardMaterial({color:0x3a2417, roughness:0.8});
+const greenMat = new THREE.MeshStandardMaterial({color:0x00b140, roughness:0.9, side:THREE.DoubleSide});
+const goldMat = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:0.4, metalness:0.7});
+
+// ---------- floor ----------
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(26, 70), floorMat);
+floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -14); floor.receiveShadow = true; scene.add(floor);
+// center aisle runner
+const aisle = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 44), new THREE.MeshStandardMaterial({color:0x1c1a18, roughness:0.6}));
+aisle.rotation.x = -Math.PI/2; aisle.position.set(0, 0.01, -4); scene.add(aisle);
+
+// ---------- pews ----------
+const pewGeo = new THREE.BoxGeometry(7.5, 1.05, 0.55);
+const pewBack = new THREE.BoxGeometry(7.5, 0.5, 0.12);
+const pewMat = woodMat;
+for(let r=0; r<10; r++){
+  for(const sx of [-1,1]){
+    const z = 6 - r*2.2;
+    const seat = new THREE.Mesh(pewGeo, pewMat);
+    seat.position.set(sx*5.2, 0.45, z); seat.castShadow = true; scene.add(seat);
+    const back = new THREE.Mesh(pewBack, pewMat);
+    back.position.set(sx*5.2, 0.95, z-0.28); scene.add(back);
+  }
+}
+
+// ---------- columns + arches ----------
+const colGeo = new THREE.CylinderGeometry(0.55, 0.65, 11, 12);
+const capGeo = new THREE.BoxGeometry(1.6, 0.7, 1.6);
+for(let i=0; i<5; i++){
+  for(const sx of [-1,1]){
+    const z = 4 - i*6.5;
+    const col = new THREE.Mesh(colGeo, stoneMat);
+    col.position.set(sx*8, 5.5, z); col.castShadow = true; scene.add(col);
+    const cap = new THREE.Mesh(capGeo, stoneMat);
+    cap.position.set(sx*8, 11.3, z); scene.add(cap);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.7,0.8,1.7), darkStone);
+    base.position.set(sx*8, 0.4, z); scene.add(base);
+  }
+}
+// side walls
+for(const sx of [-1,1]){
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(1.2, 16, 62), stoneMat);
+  wall.position.set(sx*11.5, 8, -14); scene.add(wall);
+  // arch trim between columns (torus segments)
+  for(let i=0;i<4;i++){
+    const z = 0.75 - i*6.5;
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(3.25, 0.28, 8, 20, Math.PI), darkStone);
+    arch.position.set(sx*8, 11.6, z); arch.rotation.y = Math.PI/2; scene.add(arch);
+  }
+}
+// back wall
+const backWall = new THREE.Mesh(new THREE.BoxGeometry(26, 18, 1.2), stoneMat);
+backWall.position.set(0, 9, 17); scene.add(backWall);
+
+// ---------- vaulted ceiling (barrel vault) ----------
+{
+  const vaultGeo = new THREE.CylinderGeometry(11.5, 11.5, 62, 24, 1, true, Math.PI, Math.PI);
+  // canvas texture: coffers
+  const cv = document.createElement('canvas'); cv.width=512; cv.height=512;
+  const g = cv.getContext('2d');
+  g.fillStyle='#5c5348'; g.fillRect(0,0,512,512);
+  g.strokeStyle='#2e2a24'; g.lineWidth=10;
+  for(let i=0;i<=4;i++){ g.beginPath();g.moveTo(i*128,0);g.lineTo(i*128,512);g.stroke(); g.beginPath();g.moveTo(0,i*128);g.lineTo(512,i*128);g.stroke(); }
+  g.fillStyle='#6e6455';
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++) g.fillRect(i*128+14,j*128+14,100,100);
+  const tex = new THREE.CanvasTexture(cv); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(8,4);
+  const vaultMat = new THREE.MeshStandardMaterial({map:tex, side:THREE.BackSide, roughness:0.9});
+  const vault = new THREE.Mesh(vaultGeo, vaultMat);
+  vault.rotation.x = Math.PI/2; vault.rotation.z = Math.PI/2;
+  vault.position.set(0, 11.6, -14); scene.add(vault);
+}
+
+// ---------- sanctuary platform ----------
+const plat = new THREE.Mesh(new THREE.BoxGeometry(20, 1.0, 10), darkStone);
+plat.position.set(0, 0.5, -27); plat.receiveShadow = true; scene.add(plat);
+for(let s=0;s<3;s++){
+  const step = new THREE.Mesh(new THREE.BoxGeometry(8-s*1.5, 0.33, 1.2), stoneMat);
+  step.position.set(0, 0.16+s*0.33, -21.2+s*1.1); scene.add(step);
+}
+
+// ---------- baldachin (canopy over altar) ----------
+// opening ~3.54m wide x 4.36m tall (11.6 x 14.3 ft)
+const bald = new THREE.Group();
+const bColGeo = new THREE.CylinderGeometry(0.28, 0.34, 6.4, 10);
+for(const [bx,bz] of [[-2.1,-28.6],[2.1,-28.6],[-2.1,-25.4],[2.1,-25.4]]){
+  const c = new THREE.Mesh(bColGeo, stoneMat); c.position.set(bx, 1+3.2, bz); c.castShadow=true; bald.add(c);
+  const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.9), darkStone); cb.position.set(bx,1.25,bz); bald.add(cb);
+}
+const entab = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.9, 4.4), stoneMat);
+entab.position.set(0, 1+6.4+0.45, -27); entab.castShadow=true; bald.add(entab);
+const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.1, 1.6, 4, 1), stoneMat);
+ped.rotation.y = Math.PI/4; ped.scale.set(1,1,0.78); ped.position.set(0, 1+6.4+0.9+0.8, -27); bald.add(ped);
+// altar block
+const altar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.15, 1.1), new THREE.MeshStandardMaterial({color:0x9a8f80, roughness:0.7}));
+altar.position.set(0, 1+0.57, -27); altar.castShadow=true; bald.add(altar);
+scene.add(bald);
+
+// ---------- center screen 150" 16:9 (3.32 x 1.87 m) inside baldachin ----------
+const screenTexLoader = new THREE.TextureLoader();
+let screenMat = new THREE.MeshBasicMaterial({color:0x111111});
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(3.32, 1.87), screenMat);
+screen.position.set(0, 1+2.6, -27.05); scene.add(screen);
+const screenFrame = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.05, 0.08), new THREE.MeshStandardMaterial({color:0x0a0a0a}));
+screenFrame.position.set(0, 1+2.6, -27.12); scene.add(screenFrame);
+
+// ---------- wings: draped green fabric ----------
+// swag drape approximated with plane + sine displacement
+function makeWing(sx){
+  const geo = new THREE.PlaneGeometry(7.5, 5.2, 24, 12);
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), y = pos.getY(i);
+    const u = (x+3.75)/7.5;         // 0..1 across
+    const swag = Math.sin(u*Math.PI) * -1.6;   // drape sag
+    const wave = Math.sin(u*9.0)*0.22 + Math.sin(u*23.0)*0.08;
+    pos.setZ(i, swag*0.35 + wave);
+    pos.setY(i, y + swag);
+  }
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, greenMat);
+  m.position.set(sx*6.4, 6.6, -26.2);
+  m.rotation.y = sx * -0.38;
+  m.castShadow = true;
+  scene.add(m);
+  return m;
+}
+const wingL = makeWing(-1), wingR = makeWing(1);
+
+// ---------- projection content ----------
+// sample cue images (from the cue sheet set)
+const CUE_URLS = [
+  'https://chanaver.github.io/macc-set-viewer/img/000.webp',
+  'https://chanaver.github.io/macc-set-viewer/img/018.webp',
+  'https://chanaver.github.io/macc-set-viewer/img/034.webp',
+  'https://chanaver.github.io/macc-set-viewer/img/038.webp',
+  'https://chanaver.github.io/macc-set-viewer/img/052.webp',
+];
+const CUE_NAMES = ['Roncesvalles 01분','Roncesvalles 18분','Burgos 16분','León 05분','Santiago 05분'];
+let cueIdx = 0, screenMode = 0; // 0: off(black), 1: image
+function setCue(i){
+  cueIdx = (i+CUE_URLS.length)%CUE_URLS.length;
+  screenTexLoader.load(CUE_URLS[cueIdx], t=>{ t.colorSpace = THREE.SRGBColorSpace; screenMat.map = t; screenMat.color.set(0xffffff); screenMat.needsUpdate = true; });
+  document.getElementById('cueinfo').textContent = '큐: ' + CUE_NAMES[cueIdx];
+}
+document.getElementById('bScreen').onclick = e=>{
+  screenMode = (screenMode+1)%2;
+  e.target.textContent = '스크린: ' + (screenMode? '투사 중' : '합성 전');
+  e.target.classList.toggle('on', !!screenMode);
+  if(screenMode) setCue(cueIdx); else { screenMat.map=null; screenMat.color.set(0x111111); screenMat.needsUpdate=true; document.getElementById('cueinfo').textContent=''; }
+};
+let wingMode = 0;
+document.getElementById('bWings').onclick = e=>{
+  wingMode = (wingMode+1)%2;
+  const m = wingMode? new THREE.MeshStandardMaterial({color:0x1a1a22, roughness:0.9, side:THREE.DoubleSide}) : greenMat;
+  wingL.material = m; wingR.material = m;
+  e.target.textContent = '윙: ' + (wingMode? '투사면' : '그린스크린');
+  e.target.classList.toggle('on', !!wingMode);
+};
+document.getElementById('bCue').onclick = ()=>{ if(screenMode) setCue(cueIdx-1); };
+document.getElementById('bCue2').onclick = ()=>{ if(screenMode) setCue(cueIdx+1); };
+document.getElementById('bTop').onclick = ()=>{ camera.position.set(0, 34, -8); controls.target.set(0,0,-16); };
+document.getElementById('bNave').onclick = ()=>{ camera.position.set(0, 4.5, 14); controls.target.set(0,5,-12); };
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
