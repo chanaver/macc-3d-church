@@ -485,27 +485,30 @@ sFrame.position.set(0,1+2.7,-27.62); scene.add(sFrame);
 // No center screen — wings only. Real wings: 35ft x 9ft3in each.
 // Hung from batten at y=7.0, inner end (near baldachin) drapes lower.
 function makeWing(sx){
-  const SPAN=8.5, H=2.9;  // span between attachments, fabric drop
-  const geo=new THREE.PlaneGeometry(SPAN,H,40,12);
+  // From set photo: 6m wide, attaches at y=9, drapes 4.5m to y=4.5 in middle
+  // Heavy fabric, deep catenary, soft gathered folds
+  const SPAN=6.0, SEG=48, VSEG=20;
+  const geo=new THREE.PlaneGeometry(SPAN,4.6,SEG,VSEG);
   const pos=geo.attributes.position;
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i), y=pos.getY(i);
-    const u=(x+SPAN/2)/SPAN;   // 0=inner(baldachin), 1=outer(wall)
-    const v=(y+H/2)/H;         // 0=bottom, 1=top
-    // top edge straight at batten; bottom drapes: deep catenary, inner lower
-    const drop = (1-v) * (2.0 + (1-u)*2.2 + Math.sin(u*Math.PI)*1.2);
-    // vertical fabric folds (gathered at top)
-    const folds = Math.sin(u*22.0)*0.3*(1-v*0.5) + Math.sin(u*47.0)*0.12;
-    // slight billow outward
-    const billow = Math.sin(u*Math.PI)*0.7*(1-v);
-    pos.setY(i, 7.2 - (1-v)*H*0.4 - drop*0.6);
+    const u=(x+SPAN/2)/SPAN;   // 0..1
+    const v=(y+2.3)/4.6;       // 0=bottom, 1=top
+    // deep catenary for top edge
+    const cat = Math.cosh((u-0.5)*3.0)/Math.cosh(1.5);
+    const topY = 9.0 - (1-cat)*4.0;  // 9.0 at ends, 5.0 in middle
+    const botY = topY - 4.6*(0.75+0.25*cat);
+    const yy = botY + v*(topY-botY);
+    // soft irregular folds, stronger at bottom
+    const folds = (Math.sin(u*27.0+2.1)*0.35 + Math.sin(u*53.0+0.8)*0.16 + Math.sin(u*11.0+4.2)*0.22)
+                  * (1-v*0.6);
+    const billow = Math.sin(u*Math.PI)*1.1*(1-v*0.65);
+    pos.setY(i, yy);
     pos.setZ(i, folds + billow);
   }
   geo.computeVertexNormals();
   const m=new THREE.Mesh(geo, greenMat);
-  // inner end at x=±2.5 (just outside baldachin columns at ±2.1)
-  m.position.set(sx*(2.5+SPAN/2), 0, -26.3);
-  m.rotation.y = sx>0 ? 0.06 : -0.06;
+  m.position.set(sx*(2.4+SPAN/2), 0, -26.5);
   m.castShadow=true;
   scene.add(m); return m;
 }
