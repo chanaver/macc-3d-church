@@ -61,6 +61,7 @@ document.getElementById('c').appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 5, -12);
 controls.maxPolarAngle = Math.PI*0.55;
+controls.minPolarAngle = Math.PI*0.38;
 controls.maxDistance = 70;
 
 /* ================= lights (two modes) ================= */
