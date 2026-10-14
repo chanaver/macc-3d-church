@@ -63,8 +63,10 @@ const warm = new THREE.SpotLight(0xffb36b, 1400, 60, 0.7, 0.5); warm.position.se
 const house = new THREE.PointLight(0xffe0b0, 200, 50); house.position.set(0, 8, 8); scene.add(house);
 
 // ---------- materials ----------
-const stoneMat = new THREE.MeshStandardMaterial({color:0x8a7f70, roughness:0.9});
+const stoneMat = new THREE.MeshStandardMaterial({color:0xa89c86, roughness:0.9});
 const darkStone = new THREE.MeshStandardMaterial({color:0x4a443c, roughness:0.95});
+const marbleGreen = new THREE.MeshStandardMaterial({color:0x3f5f52, roughness:0.35, metalness:0.15});
+const whiteMarble = new THREE.MeshStandardMaterial({color:0xe8e2d6, roughness:0.55});
 const floorMat = new THREE.MeshStandardMaterial({color:0x2e2a26, roughness:0.35, metalness:0.4});
 const woodMat = new THREE.MeshStandardMaterial({color:0x3a2417, roughness:0.8});
 const greenMat = new THREE.MeshStandardMaterial({color:0x00b140, roughness:0.9, side:THREE.DoubleSide});
@@ -92,17 +94,32 @@ for(let r=0; r<10; r++){
 }
 
 // ---------- columns + arches ----------
-const colGeo = new THREE.CylinderGeometry(0.55, 0.65, 11, 12);
-const capGeo = new THREE.BoxGeometry(1.6, 0.7, 1.6);
+const colGeo = new THREE.CylinderGeometry(0.5, 0.6, 12.5, 12);
+const capGeo = new THREE.BoxGeometry(1.5, 0.6, 1.5);
 for(let i=0; i<5; i++){
   for(const sx of [-1,1]){
     const z = 4 - i*6.5;
-    const col = new THREE.Mesh(colGeo, stoneMat);
-    col.position.set(sx*8, 5.5, z); col.castShadow = true; scene.add(col);
-    const cap = new THREE.Mesh(capGeo, stoneMat);
-    cap.position.set(sx*8, 11.3, z); scene.add(cap);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(1.7,0.8,1.7), darkStone);
+    const col = new THREE.Mesh(colGeo, marbleGreen);
+    col.position.set(sx*8, 6.25, z); col.castShadow = true; scene.add(col);
+    const cap = new THREE.Mesh(capGeo, goldMat);
+    cap.position.set(sx*8, 12.8, z); scene.add(cap);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.8,1.6), darkStone);
     base.position.set(sx*8, 0.4, z); scene.add(base);
+  }
+}
+// hanging chandeliers between columns
+const lampMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.6});
+const glowMat = new THREE.MeshBasicMaterial({color:0xffe6b0});
+for(let i=0;i<4;i++){
+  for(const sx of [-1,1]){
+    const z = 0.75 - i*6.5;
+    const x = sx*6.2;
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,3.2), lampMat);
+    cord.position.set(x, 13.4, z); scene.add(cord);
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.6,0.9,8), lampMat);
+    lamp.position.set(x, 11.4, z); scene.add(lamp);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.28,8,8), glowMat);
+    glow.position.set(x, 11.1, z); scene.add(glow);
   }
 }
 // side walls
@@ -113,7 +130,7 @@ for(const sx of [-1,1]){
   for(let i=0;i<4;i++){
     const z = 0.75 - i*6.5;
     const arch = new THREE.Mesh(new THREE.TorusGeometry(3.25, 0.28, 8, 20, Math.PI), darkStone);
-    arch.position.set(sx*8, 11.6, z); arch.rotation.y = Math.PI/2; scene.add(arch);
+    arch.position.set(sx*8, 13.1, z); arch.rotation.y = Math.PI/2; scene.add(arch);
   }
 }
 // back wall
@@ -151,17 +168,43 @@ for(let s=0;s<3;s++){
 const bald = new THREE.Group();
 const bColGeo = new THREE.CylinderGeometry(0.28, 0.34, 6.4, 10);
 for(const [bx,bz] of [[-2.1,-28.6],[2.1,-28.6],[-2.1,-25.4],[2.1,-25.4]]){
-  const c = new THREE.Mesh(bColGeo, stoneMat); c.position.set(bx, 1+3.2, bz); c.castShadow=true; bald.add(c);
+  const c = new THREE.Mesh(bColGeo, whiteMarble); c.position.set(bx, 1+3.2, bz); c.castShadow=true; bald.add(c);
   const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.9), darkStone); cb.position.set(bx,1.25,bz); bald.add(cb);
 }
-const entab = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.9, 4.4), stoneMat);
+const entab = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.9, 4.4), whiteMarble);
 entab.position.set(0, 1+6.4+0.45, -27); entab.castShadow=true; bald.add(entab);
-const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.1, 1.6, 4, 1), stoneMat);
+const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.1, 1.6, 4, 1), whiteMarble);
 ped.rotation.y = Math.PI/4; ped.scale.set(1,1,0.78); ped.position.set(0, 1+6.4+0.9+0.8, -27); bald.add(ped);
+// angel statues on pediment corners (stylized)
+for(const sx of [-1.9, 1.9]){
+  const angel = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.4, 6), whiteMarble);
+  angel.position.set(sx, 1+6.4+0.9+1.6+0.7, -27); bald.add(angel);
+}
+// central shrine on top
+const shrine = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.2,8), whiteMarble);
+shrine.position.set(0, 1+6.4+0.9+1.6+0.6, -27); bald.add(shrine);
 // altar block
-const altar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.15, 1.1), new THREE.MeshStandardMaterial({color:0x9a8f80, roughness:0.7}));
+const altar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.15, 1.1), whiteMarble);
 altar.position.set(0, 1+0.57, -27); altar.castShadow=true; bald.add(altar);
 scene.add(bald);
+
+// ---------- apse: semi-circular sanctuary wall + half-dome mosaic ----------
+{
+  const apseMat = new THREE.MeshStandardMaterial({color:0xb09a72, roughness:0.85, side:THREE.BackSide});
+  const apseWall = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 12, 24, 1, true, 0, Math.PI), apseMat);
+  apseWall.rotation.y = Math.PI/2; apseWall.position.set(0, 6, -30); scene.add(apseWall);
+  // half-dome with mosaic-ish radial texture
+  const cv2 = document.createElement('canvas'); cv2.width=256; cv2.height=128;
+  const g2 = cv2.getContext('2d');
+  const grad = g2.createRadialGradient(128,128,8,128,128,128);
+  grad.addColorStop(0,'#e8c76a'); grad.addColorStop(0.4,'#a8842e'); grad.addColorStop(1,'#4a3a1a');
+  g2.fillStyle=grad; g2.fillRect(0,0,256,128);
+  g2.fillStyle='#7a5c1e';
+  for(let i=0;i<12;i++){ const a=Math.PI*i/12; g2.beginPath(); g2.moveTo(128,128); g2.lineTo(128+Math.cos(a)*120,128-Math.sin(a)*120); g2.stroke(); }
+  const domeTex = new THREE.CanvasTexture(cv2);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(7.5, 24, 12, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshStandardMaterial({map:domeTex, side:THREE.BackSide, roughness:0.9}));
+  dome.rotation.y = Math.PI/2; dome.position.set(0, 12, -30); scene.add(dome);
+}
 
 // ---------- center screen 150" 16:9 (3.32 x 1.87 m) inside baldachin ----------
 const screenTexLoader = new THREE.TextureLoader();
