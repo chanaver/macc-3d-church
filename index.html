@@ -34,6 +34,8 @@
     <button id="bLight" class="on">조명: 공연 모드</button>
     <!-- <button id="bScreen">스크린: 합성 전</button> -->
     <button id="bWings">윙: 그린스크린</button>
+    <button id="bWingTex">윙에 샘플 이미지</button>
+    <input type="file" id="wingFile" accept="image/*" style="display:none">
     <!-- <button id="bCue">◀ 큐</button> -->
     <!-- <button id="bCue2">큐 ▶</button> -->
     <button id="bClose">제단 가까이</button>
@@ -187,6 +189,8 @@ const whiteMarble = new THREE.MeshStandardMaterial({color:0xe8e2d6, roughness:0.
 const goldMat   = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:0.35, metalness:0.75});
 const woodMat   = new THREE.MeshStandardMaterial({color:0x6b4a2e, roughness:0.65});
 const greenMat  = new THREE.MeshStandardMaterial({color:0x00c850, roughness:0.85, side:THREE.DoubleSide, emissive:0x004a1a, emissiveIntensity:0.7});
+let wingTexMode = 0;
+const wingTexLoader = new THREE.TextureLoader();
 const floorMat  = new THREE.MeshStandardMaterial({map:floorTex, roughness:0.28, metalness:0.45});
 const glassMat  = new THREE.MeshStandardMaterial({map:glassTex, emissive:0xffffff, emissiveMap:glassTex, emissiveIntensity:0.9, roughness:0.4});
 
@@ -518,6 +522,18 @@ const wingL=makeWing(-1), wingR=makeWing(1);
 
 /* center screen UI removed (wings only) */
 let wingMode=0;
+document.getElementById('bWingTex').onclick=()=>{ document.getElementById('wingFile').click(); };
+document.getElementById('wingFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const url=URL.createObjectURL(f);
+  wingTexLoader.load(url, t=>{
+    t.colorSpace=THREE.SRGBColorSpace;
+    greenMat.map=t; greenMat.color.set(0xffffff); greenMat.emissive.set(0x000000);
+    greenMat.needsUpdate=true;
+    document.getElementById('bWingTex').textContent='윙: 이미지 적용됨';
+    document.getElementById('bWingTex').classList.add('on');
+  });
+};
 document.getElementById('bWings').onclick=e=>{
   wingMode=(wingMode+1)%2;
   const m=wingMode? new THREE.MeshStandardMaterial({color:0x15151d,roughness:0.9,side:THREE.DoubleSide}) : greenMat;
