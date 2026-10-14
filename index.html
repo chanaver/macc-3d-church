@@ -123,27 +123,35 @@ const floorTex = canvasTex(512,512,(g)=>{
     for(let k=0;k<6;k++){ g.beginPath(); const x=i*128+Math.random()*128, y=j*128; g.moveTo(x,y); g.lineTo(x+20-Math.random()*40, y+128); g.stroke(); }
   }
 },6,16);
-// vault: delicate painted panels — cream with fine gold/blue tracery (from ref photos)
+// vault: ornate painted coffers — gold borders, rosettes, blue monogram panels (from detail-1.jpg)
 const vaultTex = canvasTex(512,512,(g)=>{
-  g.fillStyle='#d8cba6'; g.fillRect(0,0,512,512);
+  g.fillStyle='#c8b586'; g.fillRect(0,0,512,512);
   for(let i=0;i<4;i++)for(let j=0;j<4;j++){
     const x=i*128,y=j*128;
-    g.fillStyle=(i+j)%2? '#e0d2ae':'#d2c49c'; g.fillRect(x+4,y+4,120,120);
-    // fine gold border
-    g.strokeStyle='#a8842e'; g.lineWidth=2; g.strokeRect(x+10,y+10,108,108);
-    g.strokeStyle='#d4af37'; g.lineWidth=1; g.strokeRect(x+16,y+16,96,96);
-    // delicate center motif: small blue medallion with gold rays
-    g.fillStyle='#6a8aaa'; g.beginPath(); g.arc(x+64,y+64,20,0,7); g.fill();
-    g.strokeStyle='#e8d48a'; g.lineWidth=2; g.beginPath(); g.arc(x+64,y+64,20,0,7); g.stroke();
-    g.strokeStyle='#e8d48a'; g.lineWidth=1.5;
-    for(let k=0;k<8;k++){ const a=k/8*Math.PI*2;
-      g.beginPath(); g.moveTo(x+64+Math.cos(a)*24,y+64+Math.sin(a)*24);
-      g.lineTo(x+64+Math.cos(a)*34,y+64+Math.sin(a)*34); g.stroke(); }
-    g.fillStyle='#e8d48a'; g.beginPath(); g.arc(x+64,y+64,7,0,7); g.fill();
-    // corner flourishes
-    g.fillStyle='#a8842e';
-    for(const [cx,cy] of [[x+24,y+24],[x+104,y+24],[x+24,y+104],[x+104,y+104]]){
-      g.beginPath(); g.arc(cx,cy,5,0,7); g.fill();
+    // coffer base
+    g.fillStyle=(i+j)%2? '#d6c498':'#c2b088'; g.fillRect(x+3,y+3,122,122);
+    // triple gold border
+    g.strokeStyle='#8a6d2a'; g.lineWidth=3; g.strokeRect(x+8,y+8,112,112);
+    g.strokeStyle='#d4af37'; g.lineWidth=1.5; g.strokeRect(x+14,y+14,100,100);
+    g.strokeStyle='#8a6d2a'; g.lineWidth=1; g.strokeRect(x+20,y+20,88,88);
+    if((i+j)%2===0){
+      // rosette: gold flower on cream
+      g.fillStyle='#a8842e';
+      for(let k=0;k<8;k++){ const a=k/8*Math.PI*2;
+        g.beginPath(); g.ellipse(x+64+Math.cos(a)*18,y+64+Math.sin(a)*18,10,5,a,0,7); g.fill(); }
+      g.fillStyle='#d4af37'; g.beginPath(); g.arc(x+64,y+64,12,0,7); g.fill();
+      g.fillStyle='#7a5c1e'; g.beginPath(); g.arc(x+64,y+64,6,0,7); g.fill();
+    } else {
+      // blue monogram panel
+      g.fillStyle='#4a6a9a'; g.fillRect(x+34,y+34,60,60);
+      g.strokeStyle='#e8d48a'; g.lineWidth=2.5; g.strokeRect(x+34,y+34,60,60);
+      g.fillStyle='#e8d48a'; g.font='bold 28px serif'; g.textAlign='center'; g.textBaseline='middle';
+      g.fillText(['IHS','AM','JR','SP'][ (i*4+j)%4 ], x+64, y+66);
+    }
+    // corner dots
+    g.fillStyle='#8a6d2a';
+    for(const [cx,cy] of [[x+28,y+28],[x+100,y+28],[x+28,y+100],[x+100,y+100]]){
+      g.beginPath(); g.arc(cx,cy,4,0,7); g.fill();
     }
   }
 },10,5);
@@ -223,9 +231,23 @@ const colX=7.5;
     const base=new THREE.Mesh(new THREE.BoxGeometry(1.25,0.9,1.25),darkStone); base.position.y=0.45; grp.add(base);
     const shaft=new THREE.Mesh(shaftG,shaftMat); shaft.position.y=0.9+6.25; shaft.castShadow=true; grp.add(shaft);
     // layered capital: abacus + echinus + necking
+    // ornate Corinthian capital (from detail-1.jpg ref)
     const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.46,0.4,0.4,14),goldMat); neck.position.y=13.5; grp.add(neck);
     const ech=new THREE.Mesh(new THREE.CylinderGeometry(0.72,0.46,0.55,14),goldMat); ech.position.y=13.95; grp.add(ech);
-    const abac=new THREE.Mesh(new THREE.BoxGeometry(1.25,0.35,1.25),goldMat); abac.position.y=14.4; grp.add(abac);
+    // acanthus leaf hints: angled boxes around echinus
+    for(let k=0;k<8;k++){
+      const a=k/8*Math.PI*2;
+      const leaf=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.5,0.1),goldMat);
+      leaf.position.set(Math.cos(a)*0.62,13.95,Math.sin(a)*0.62);
+      leaf.rotation.y=-a; leaf.rotation.x=0.35;
+      grp.add(leaf);
+    }
+    // volutes at corners
+    for(const [vx,vz] of [[0.55,0.55],[-0.55,0.55],[0.55,-0.55],[-0.55,-0.55]]){
+      const vol=new THREE.Mesh(new THREE.SphereGeometry(0.14,8,8),goldMat);
+      vol.position.set(vx,14.25,vz); grp.add(vol);
+    }
+    const abac=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.3,1.35),goldMat); abac.position.y=14.45; grp.add(abac);
     grp.position.set(sx*colX,0,z);
     scene.add(grp);
   }

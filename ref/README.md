@@ -16,3 +16,14 @@ Three.js 3D 모델 제작용 레퍼런스/텍스처. 2026-10-14 수집, 전부 `
 주의:
 - ceiling-1은 EverGreene 복원 이전 사진이라 현재보다 수수하게 보임. 구조 참고용으로만 사용.
 - exterior-1은 해상도가 낮아(408×493) 외형 매싱 참고용으로만 사용.
+
+## 추가 수집 (2026-10-14, 2차)
+| 파일 | 설명 |
+|---|---|
+| side-1.jpg | 좌측면에서 본 네이브 — 기둥 옆모습, 아치, 제단 (ncregister) |
+| exterior-2.jpg | 측면 외관 — 정면 포티코와 쌍탑, 거리 뷰 (Google/where-e) |
+| detail-1.jpg | 금 코린트 주두 + 샹들리에 클로즈업 (EverGreene 복원) |
+| altar-3.jpg | 제단 클로즈업 — 녹색 대리석 기둥, 제대, 촛대 (공식 사이트) |
+| detail-2.jpg | 볼트 채색 + 스테인드글라스 클로즈업 (공식 사이트) |
+
+제외: shutterstock(유료/워터마크), stj-stl.org(세인트루이스), pinterest 중복, alexschmutz(다른 고딕 성당), outgoing.world(다른 성당), travelgumbo P1200588(세인트제임스 추정), stroik(사우스다코타).
