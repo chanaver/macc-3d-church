@@ -76,7 +76,7 @@ const wingLightR = new THREE.SpotLight(0xd0ffe0, 500, 30, 0.6, 0.4);
 wingLightR.position.set(7, 10, -20); wingLightR.target.position.set(6, 5.5, -26.5);
 scene.add(wingLightR, wingLightR.target);
 // baldachin warm spotlight
-const warmSpot = new THREE.SpotLight(0xffb36b, 380, 65, 0.5, 0.6);
+const warmSpot = new THREE.SpotLight(0xff8a4a, 380, 65, 0.5, 0.6);
 warmSpot.position.set(0, 15, -18); warmSpot.target.position.set(0,5,-27.5); scene.add(warmSpot, warmSpot.target);
 const housePt = new THREE.PointLight(0xffe0b0, 200, 55); housePt.position.set(0, 9, 8); scene.add(housePt);
 const daySun = new THREE.DirectionalLight(0xfff2dd, 0); daySun.position.set(20, 30, 10); scene.add(daySun);
@@ -87,12 +87,12 @@ let lightMode = 0; // 0 performance, 1 day
 function setLight(m){
   lightMode = m;
   const perf = m===0;
-  ambient.intensity = perf? 0.35 : 0.9; ambient.color.set(perf?0x1a2440:0xfff2e0);
-  blueWash.intensity = perf? 180 : 0;
-  wingLightL.intensity = perf? 500 : 0;
-  wingLightR.intensity = perf? 500 : 0;
-  warmSpot.intensity = perf? 500 : 120;
-  housePt.intensity = perf? 120 : 600;
+  ambient.intensity = perf? 0.12 : 0.9; ambient.color.set(perf?0x0a1020:0xfff2e0);
+  blueWash.intensity = perf? 60 : 0;
+  wingLightL.intensity = perf? 1200 : 0;
+  wingLightR.intensity = perf? 1200 : 0;
+  warmSpot.intensity = perf? 700 : 120;
+  housePt.intensity = perf? 30 : 600;
   daySun.intensity = perf? 0 : 2.2;
   dayFill.intensity = perf? 0 : 0.9;
   if(domeMat) domeMat.color.set(perf? 0x2a2a2a : 0xffffff);
@@ -186,7 +186,7 @@ const marbleGreen = new THREE.MeshStandardMaterial({color:0x3f5f52, roughness:0.
 const whiteMarble = new THREE.MeshStandardMaterial({color:0xe8e2d6, roughness:0.5});
 const goldMat   = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:0.35, metalness:0.75});
 const woodMat   = new THREE.MeshStandardMaterial({color:0x6b4a2e, roughness:0.65});
-const greenMat  = new THREE.MeshStandardMaterial({color:0x00b140, roughness:0.9, side:THREE.DoubleSide});
+const greenMat  = new THREE.MeshStandardMaterial({color:0x00c850, roughness:0.85, side:THREE.DoubleSide, emissive:0x004a1a, emissiveIntensity:0.7});
 const floorMat  = new THREE.MeshStandardMaterial({map:floorTex, roughness:0.28, metalness:0.45});
 const glassMat  = new THREE.MeshStandardMaterial({map:glassTex, emissive:0xffffff, emissiveMap:glassTex, emissiveIntensity:0.9, roughness:0.4});
 
