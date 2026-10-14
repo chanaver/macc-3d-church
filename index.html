@@ -423,20 +423,27 @@ sFrame.position.set(0,1+2.7,-27.62); scene.add(sFrame);
 
 /* ================= wings: draped green fabric ================= */
 function makeWing(sx){
-  const geo=new THREE.PlaneGeometry(7.6,5.4,28,14);
+  // real wings: 35 ft (10.7m) wide x 9ft 3in (2.8m) tall — long horizontal swag
+  const geo=new THREE.PlaneGeometry(10.6,2.9,36,10);
   const pos=geo.attributes.position;
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i), y=pos.getY(i);
-    const u=(x+3.8)/7.6;
-    const swag=Math.sin(u*Math.PI)*-1.7;
-    const folds=Math.sin(u*10.0)*0.24+Math.sin(u*23.0)*0.09+Math.sin(u*4.0+1.0)*0.15;
-    pos.setZ(i, swag*0.3+folds);
-    pos.setY(i, y+swag);
+    const u=(x+5.3)/10.6;   // 0..1 across plane
+    // o: 0=inner(near baldachin), 1=outer(near wall)
+    const o = sx<0 ? 1-u : u;
+    // swag: outer end high, dips in middle, inner end low
+    const hang = o*2.4 - Math.sin(o*Math.PI)*1.0;
+    // fabric folds
+    const folds=Math.sin(u*14.0)*0.18+Math.sin(u*31.0)*0.07;
+    const v=(y+1.45)/2.9;   // 0=bottom, 1=top
+    pos.setY(i, y + hang*(0.35+0.65*v) - (1-v)*0.4);
+    pos.setZ(i, folds + Math.sin(o*Math.PI)*0.45);
   }
   geo.computeVertexNormals();
   const m=new THREE.Mesh(geo,greenMat);
-  m.position.set(sx*7.8,6.9,-26.6);
-  m.rotation.y=sx*-0.4;
+  // spans from near baldachin (x~2.6) out to side wall (x~13.2)
+  m.position.set(sx*7.9,5.6,-26.3);
+  m.rotation.y=sx*-0.10;
   m.castShadow=true;
   scene.add(m); return m;
 }
