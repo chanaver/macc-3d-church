@@ -76,7 +76,7 @@ let lightMode = 0; // 0 performance, 1 day
 function setLight(m){
   lightMode = m;
   const perf = m===0;
-  ambient.intensity = perf? 0.55 : 0.9; ambient.color.set(perf?0x2a3a66:0xfff2e0);
+  ambient.intensity = perf? 0.75 : 0.9; ambient.color.set(perf?0x4a5a8a:0xfff2e0);
   blueWash.intensity = perf? 260 : 0;
   warmSpot.intensity = perf? 380 : 120;
   housePt.intensity = perf? 200 : 600;
@@ -386,24 +386,11 @@ scene.add(bald);
   const apseMat=new THREE.MeshStandardMaterial({color:0xb59c72,roughness:0.85,side:THREE.BackSide});
   const w=new THREE.Mesh(new THREE.CylinderGeometry(8,8,13,28,1,true,0,Math.PI),apseMat);
   w.rotation.y=Math.PI/2; w.position.set(0,6.5,-31); scene.add(w);
-  const cv2=document.createElement('canvas'); cv2.width=512; cv2.height=256;
-  const g2=cv2.getContext('2d');
-  // warm gold dome with subtle radial ribs (seen from below at distance)
-  const grd=g2.createLinearGradient(0,0,0,256);
-  grd.addColorStop(0,'#d8b96a'); grd.addColorStop(0.6,'#b08d3e'); grd.addColorStop(1,'#7a5f22');
-  g2.fillStyle=grd; g2.fillRect(0,0,512,256);
-  g2.strokeStyle='rgba(90,64,20,0.55)'; g2.lineWidth=4;
-  for(let i=0;i<=16;i++){ const x=i*32; g2.beginPath(); g2.moveTo(256,256); g2.lineTo(x,0); g2.stroke(); }
-  g2.strokeStyle='rgba(255,240,190,0.5)'; g2.lineWidth=2;
-  for(let r=40;r<250;r+=42){ g2.beginPath(); g2.arc(256,256,r,Math.PI,0); g2.stroke(); }
-  // soft glow at crown
-  const gl=g2.createRadialGradient(256,30,4,256,30,70);
-  gl.addColorStop(0,'rgba(255,246,210,0.95)'); gl.addColorStop(1,'rgba(255,246,210,0)');
-  g2.fillStyle=gl; g2.fillRect(150,0,212,120);
-  const dt=new THREE.CanvasTexture(cv2); dt.colorSpace=THREE.SRGBColorSpace;
-  const dome=new THREE.Mesh(new THREE.SphereGeometry(8,28,14,0,Math.PI*2,0,Math.PI/2),
+  const dt=new THREE.TextureLoader().load('tex_apse_dome.jpg');
+  dt.colorSpace=THREE.SRGBColorSpace;
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(6.5,28,14,0,Math.PI*2,0,Math.PI/2),
     new THREE.MeshBasicMaterial({map:dt,side:THREE.BackSide}));
-  dome.rotation.y=Math.PI/2; dome.position.set(0,13,-31); scene.add(dome);
+  dome.rotation.y=Math.PI; dome.position.set(0,11.5,-31); scene.add(dome);
   // apse stained glass windows
   for(let i=-1;i<=1;i++){
     const a=Math.PI/2 + i*0.5;
