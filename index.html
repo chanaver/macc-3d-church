@@ -17,18 +17,21 @@
   button.on{background:#3b5bff;border-color:#3b5bff}
   #cueinfo{font-size:12px;color:#ffd76a;margin-left:auto}
   #help{position:absolute;top:10px;left:12px;font-size:11px;color:#777;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:8px}
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#050508;z-index:10;font-size:14px;color:#888}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
 </script>
 </head>
 <body>
+<div id="loading">모델 로딩 중…</div>
 <div id="c"></div>
 <div id="help">드래그: 회전 · 휠: 줌 · 우드래그: 이동</div>
 <div id="hud">
   <h1>Co-Cathedral of St. Joseph — Path of Miracles 셋 3D</h1>
   <p>발다킨 중앙 150" 스크린 + 그린스크린 윙 (실측: 개구부 11.6 × 14.3 ft)</p>
   <div id="ctrl">
+    <button id="bLight" class="on">조명: 공연 모드</button>
     <button id="bScreen">스크린: 합성 전</button>
     <button id="bWings">윙: 그린스크린</button>
     <button id="bCue">◀ 큐</button>
@@ -42,241 +45,396 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+/* ================= renderer / scene ================= */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050508);
-scene.fog = new THREE.Fog(0x050508, 40, 110);
+scene.fog = new THREE.Fog(0x050508, 45, 120);
 const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 300);
 camera.position.set(0, 4.5, 14);
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 document.getElementById('c').appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 5, -12);
 controls.maxPolarAngle = Math.PI*0.55;
+controls.maxDistance = 70;
 
-// ---------- lights ----------
-scene.add(new THREE.AmbientLight(0x2a3a66, 0.55));
-const blue = new THREE.PointLight(0x3a5aff, 900, 90); blue.position.set(0, 16, -6); scene.add(blue);
-const warm = new THREE.SpotLight(0xffb36b, 1400, 60, 0.7, 0.5); warm.position.set(0, 14, -20); warm.target.position.set(0,4,-27); scene.add(warm, warm.target);
-const house = new THREE.PointLight(0xffe0b0, 200, 50); house.position.set(0, 8, 8); scene.add(house);
+/* ================= lights (two modes) ================= */
+const ambient = new THREE.AmbientLight(0x2a3a66, 0.55); scene.add(ambient);
+const blueWash = new THREE.PointLight(0x3a5aff, 900, 95); blueWash.position.set(0, 16, -6); scene.add(blueWash);
+const warmSpot = new THREE.SpotLight(0xffb36b, 1400, 65, 0.7, 0.5);
+warmSpot.position.set(0, 14, -20); warmSpot.target.position.set(0,4,-27); scene.add(warmSpot, warmSpot.target);
+const housePt = new THREE.PointLight(0xffe0b0, 200, 55); housePt.position.set(0, 9, 8); scene.add(housePt);
+const daySun = new THREE.DirectionalLight(0xfff2dd, 0); daySun.position.set(20, 30, 10); scene.add(daySun);
+const dayFill = new THREE.HemisphereLight(0xfff6e6, 0x5a4a38, 0); scene.add(dayFill);
+let lightMode = 0; // 0 performance, 1 day
+function setLight(m){
+  lightMode = m;
+  const perf = m===0;
+  ambient.intensity = perf? 0.55 : 0.9; ambient.color.set(perf?0x2a3a66:0xfff2e0);
+  blueWash.intensity = perf? 900 : 0;
+  warmSpot.intensity = perf? 1400 : 300;
+  housePt.intensity = perf? 200 : 600;
+  daySun.intensity = perf? 0 : 2.2;
+  dayFill.intensity = perf? 0 : 0.9;
+  scene.background.set(perf?0x050508:0x1a2030);
+  scene.fog.color.set(perf?0x050508:0x1a2030);
+  document.getElementById('bLight').textContent = '조명: ' + (perf? '공연 모드':'밝게 (실제)');
+  document.getElementById('bLight').classList.toggle('on', perf);
+}
+document.getElementById('bLight').onclick = ()=> setLight(1-lightMode);
 
-// ---------- materials ----------
-const stoneMat = new THREE.MeshStandardMaterial({color:0xa89c86, roughness:0.9});
+/* ================= procedural textures ================= */
+function canvasTex(w,h,draw,rx=1,ry=1){
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  draw(cv.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(cv);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry);
+  t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4;
+  return t;
+}
+// marble floor tiles
+const floorTex = canvasTex(512,512,(g)=>{
+  g.fillStyle='#3b352e'; g.fillRect(0,0,512,512);
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){
+    const v=38+Math.random()*14;
+    g.fillStyle=`rgb(${v+8},${v+2},${v-4})`;
+    g.fillRect(i*128+2,j*128+2,124,124);
+    g.strokeStyle='rgba(200,190,170,0.25)';
+    for(let k=0;k<6;k++){ g.beginPath(); const x=i*128+Math.random()*128, y=j*128; g.moveTo(x,y); g.lineTo(x+20-Math.random()*40, y+128); g.stroke(); }
+  }
+},6,16);
+// vault: painted coffers with gold trim
+const vaultTex = canvasTex(512,512,(g)=>{
+  g.fillStyle='#7d6f57'; g.fillRect(0,0,512,512);
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){
+    const x=i*128,y=j*128;
+    g.fillStyle='#8d7d60'; g.fillRect(x+8,y+8,112,112);
+    g.strokeStyle='#c9a227'; g.lineWidth=5; g.strokeRect(x+14,y+14,100,100);
+    g.fillStyle='#6e6046';
+    g.beginPath(); g.arc(x+64,y+64,26,0,7); g.fill();
+    g.strokeStyle='#e8d48a'; g.lineWidth=3; g.beginPath(); g.arc(x+64,y+64,26,0,7); g.stroke();
+  }
+},10,5);
+// stained glass (gothic arch window)
+function stainedGlassTex(){
+  return canvasTex(256,512,(g,w,h)=>{
+    g.fillStyle='#101018'; g.fillRect(0,0,w,h);
+    const cols=['#c02020','#2040c0','#208020','#c0a020','#8020a0','#20a0c0'];
+    // arch top
+    g.save();
+    g.beginPath(); g.moveTo(20,h-20); g.lineTo(20,140); g.arc(w/2,140,w/2-20,Math.PI,0); g.lineTo(w-20,h-20); g.closePath(); g.clip();
+    for(let r=0;r<10;r++)for(let c=0;c<5;c++){
+      g.fillStyle=cols[(r*5+c+((r+c)%3))%cols.length];
+      g.globalAlpha=0.85;
+      g.fillRect(20+c*(w-40)/5, 40+r*(h-60)/10, (w-40)/5-3, (h-60)/10-3);
+    }
+    g.globalAlpha=1;
+    // figure silhouette
+    g.fillStyle='rgba(240,230,200,0.9)';
+    g.beginPath(); g.arc(w/2,h*0.42,26,0,7); g.fill();
+    g.fillRect(w/2-20,h*0.42,40,h*0.34);
+    g.restore();
+    g.strokeStyle='#3a3226'; g.lineWidth=14; g.strokeRect(8,8,w-16,h-16);
+  });
+}
+const glassTex = stainedGlassTex();
+
+/* ================= materials ================= */
+const stoneMat  = new THREE.MeshStandardMaterial({color:0xa89c86, roughness:0.9});
 const darkStone = new THREE.MeshStandardMaterial({color:0x4a443c, roughness:0.95});
-const marbleGreen = new THREE.MeshStandardMaterial({color:0x3f5f52, roughness:0.35, metalness:0.15});
-const whiteMarble = new THREE.MeshStandardMaterial({color:0xe8e2d6, roughness:0.55});
-const floorMat = new THREE.MeshStandardMaterial({color:0x2e2a26, roughness:0.35, metalness:0.4});
-const woodMat = new THREE.MeshStandardMaterial({color:0x3a2417, roughness:0.8});
-const greenMat = new THREE.MeshStandardMaterial({color:0x00b140, roughness:0.9, side:THREE.DoubleSide});
-const goldMat = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:0.4, metalness:0.7});
+const marbleGreen = new THREE.MeshStandardMaterial({color:0x3f5f52, roughness:0.3, metalness:0.2});
+const whiteMarble = new THREE.MeshStandardMaterial({color:0xe8e2d6, roughness:0.5});
+const goldMat   = new THREE.MeshStandardMaterial({color:0xc9a227, roughness:0.35, metalness:0.75});
+const woodMat   = new THREE.MeshStandardMaterial({color:0x2e1d12, roughness:0.7});
+const greenMat  = new THREE.MeshStandardMaterial({color:0x00b140, roughness:0.9, side:THREE.DoubleSide});
+const floorMat  = new THREE.MeshStandardMaterial({map:floorTex, roughness:0.28, metalness:0.45});
+const glassMat  = new THREE.MeshStandardMaterial({map:glassTex, emissive:0xffffff, emissiveMap:glassTex, emissiveIntensity:0.9, roughness:0.4});
 
-// ---------- floor ----------
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(26, 70), floorMat);
-floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -14); floor.receiveShadow = true; scene.add(floor);
-// center aisle runner
-const aisle = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 44), new THREE.MeshStandardMaterial({color:0x1c1a18, roughness:0.6}));
-aisle.rotation.x = -Math.PI/2; aisle.position.set(0, 0.01, -4); scene.add(aisle);
+/* ================= floor ================= */
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(26,72), floorMat);
+floor.rotation.x=-Math.PI/2; floor.position.set(0,0,-14); floor.receiveShadow=true; scene.add(floor);
+const aisle = new THREE.Mesh(new THREE.PlaneGeometry(2.4,46), new THREE.MeshStandardMaterial({color:0x201c18, roughness:0.5}));
+aisle.rotation.x=-Math.PI/2; aisle.position.set(0,0.012,-3); scene.add(aisle);
 
-// ---------- pews ----------
-const pewGeo = new THREE.BoxGeometry(7.5, 1.05, 0.55);
-const pewBack = new THREE.BoxGeometry(7.5, 0.5, 0.12);
-const pewMat = woodMat;
-for(let r=0; r<10; r++){
-  for(const sx of [-1,1]){
-    const z = 6 - r*2.2;
-    const seat = new THREE.Mesh(pewGeo, pewMat);
-    seat.position.set(sx*5.2, 0.45, z); seat.castShadow = true; scene.add(seat);
-    const back = new THREE.Mesh(pewBack, pewMat);
-    back.position.set(sx*5.2, 0.95, z-0.28); scene.add(back);
-  }
-}
-
-// ---------- columns + arches ----------
-const colGeo = new THREE.CylinderGeometry(0.5, 0.6, 12.5, 12);
-const capGeo = new THREE.BoxGeometry(1.5, 0.6, 1.5);
-for(let i=0; i<5; i++){
-  for(const sx of [-1,1]){
-    const z = 4 - i*6.5;
-    const col = new THREE.Mesh(colGeo, marbleGreen);
-    col.position.set(sx*8, 6.25, z); col.castShadow = true; scene.add(col);
-    const cap = new THREE.Mesh(capGeo, goldMat);
-    cap.position.set(sx*8, 12.8, z); scene.add(cap);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.8,1.6), darkStone);
-    base.position.set(sx*8, 0.4, z); scene.add(base);
-  }
-}
-// hanging chandeliers between columns
-const lampMat = new THREE.MeshStandardMaterial({color:0x222222, roughness:0.6});
-const glowMat = new THREE.MeshBasicMaterial({color:0xffe6b0});
-for(let i=0;i<4;i++){
-  for(const sx of [-1,1]){
-    const z = 0.75 - i*6.5;
-    const x = sx*6.2;
-    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,3.2), lampMat);
-    cord.position.set(x, 13.4, z); scene.add(cord);
-    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.6,0.9,8), lampMat);
-    lamp.position.set(x, 11.4, z); scene.add(lamp);
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.28,8,8), glowMat);
-    glow.position.set(x, 11.1, z); scene.add(glow);
-  }
-}
-// side walls
-for(const sx of [-1,1]){
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(1.2, 16, 62), stoneMat);
-  wall.position.set(sx*11.5, 8, -14); scene.add(wall);
-  // arch trim between columns (torus segments)
-  for(let i=0;i<4;i++){
-    const z = 0.75 - i*6.5;
-    const arch = new THREE.Mesh(new THREE.TorusGeometry(3.25, 0.28, 8, 20, Math.PI), darkStone);
-    arch.position.set(sx*8, 13.1, z); arch.rotation.y = Math.PI/2; scene.add(arch);
-  }
-}
-// back wall
-const backWall = new THREE.Mesh(new THREE.BoxGeometry(26, 18, 1.2), stoneMat);
-backWall.position.set(0, 9, 17); scene.add(backWall);
-
-// ---------- vaulted ceiling (barrel vault) ----------
+/* ================= pews (with end caps + kneelers) ================= */
 {
-  const vaultGeo = new THREE.CylinderGeometry(11.5, 11.5, 62, 24, 1, true, Math.PI, Math.PI);
-  // canvas texture: coffers
-  const cv = document.createElement('canvas'); cv.width=512; cv.height=512;
-  const g = cv.getContext('2d');
-  g.fillStyle='#5c5348'; g.fillRect(0,0,512,512);
-  g.strokeStyle='#2e2a24'; g.lineWidth=10;
-  for(let i=0;i<=4;i++){ g.beginPath();g.moveTo(i*128,0);g.lineTo(i*128,512);g.stroke(); g.beginPath();g.moveTo(0,i*128);g.lineTo(512,i*128);g.stroke(); }
-  g.fillStyle='#6e6455';
-  for(let i=0;i<4;i++)for(let j=0;j<4;j++) g.fillRect(i*128+14,j*128+14,100,100);
-  const tex = new THREE.CanvasTexture(cv); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(8,4);
-  const vaultMat = new THREE.MeshStandardMaterial({map:tex, side:THREE.BackSide, roughness:0.9});
-  const vault = new THREE.Mesh(vaultGeo, vaultMat);
-  vault.rotation.x = Math.PI/2; vault.rotation.z = Math.PI/2;
-  vault.position.set(0, 11.6, -14); scene.add(vault);
+  const seatG=new THREE.BoxGeometry(7.6,0.12,0.55);
+  const backG=new THREE.BoxGeometry(7.6,0.85,0.12);
+  const endG=new THREE.BoxGeometry(0.14,1.15,0.7);
+  const kneelG=new THREE.BoxGeometry(7.2,0.1,0.35);
+  for(let r=0;r<11;r++)for(const sx of [-1,1]){
+    const z=7-r*2.15, x=sx*5.3;
+    const grp=new THREE.Group();
+    const seat=new THREE.Mesh(seatG,woodMat); seat.position.y=0.48; grp.add(seat);
+    const back=new THREE.Mesh(backG,woodMat); back.position.set(0,0.95,-0.3); grp.add(back);
+    const top=new THREE.Mesh(new THREE.BoxGeometry(7.6,0.09,0.2),woodMat); top.position.set(0,1.4,-0.3); grp.add(top);
+    for(const ex of [-3.8,3.8]){ const e=new THREE.Mesh(endG,woodMat); e.position.set(ex,0.58,0); grp.add(e); }
+    const kn=new THREE.Mesh(kneelG,woodMat); kn.position.set(0,0.12,0.55); grp.add(kn);
+    grp.position.set(x,0,z);
+    grp.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+    scene.add(grp);
+  }
 }
 
-// ---------- sanctuary platform ----------
-const plat = new THREE.Mesh(new THREE.BoxGeometry(20, 1.0, 10), darkStone);
-plat.position.set(0, 0.5, -27); plat.receiveShadow = true; scene.add(plat);
+/* ================= columns (green marble, gold capitals) ================= */
+const colX=8;
+{
+  const shaftG=new THREE.CylinderGeometry(0.5,0.62,12.5,14);
+  // fluting illusion: darker vertical stripes via texture
+  const fluteTex=canvasTex(128,32,(g,w,h)=>{ g.fillStyle='#3f5f52'; g.fillRect(0,0,w,h); g.fillStyle='rgba(0,0,0,0.25)'; for(let i=0;i<16;i++) g.fillRect(i*8,0,3,h); },3,1);
+  const shaftMat=new THREE.MeshStandardMaterial({map:fluteTex, roughness:0.3, metalness:0.2});
+  for(let i=0;i<5;i++)for(const sx of [-1,1]){
+    const z=4-i*6.5;
+    const grp=new THREE.Group();
+    const base=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.9,1.7),darkStone); base.position.y=0.45; grp.add(base);
+    const shaft=new THREE.Mesh(shaftG,shaftMat); shaft.position.y=0.9+6.25; shaft.castShadow=true; grp.add(shaft);
+    // layered capital: abacus + echinus + necking
+    const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.55,0.4,14),goldMat); neck.position.y=13.5; grp.add(neck);
+    const ech=new THREE.Mesh(new THREE.CylinderGeometry(0.95,0.62,0.55,14),goldMat); ech.position.y=13.95; grp.add(ech);
+    const abac=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.35,1.7),goldMat); abac.position.y=14.4; grp.add(abac);
+    grp.position.set(sx*colX,0,z);
+    scene.add(grp);
+  }
+  // chandeliers
+  const lampMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.6});
+  const glowMat=new THREE.MeshBasicMaterial({color:0xffe2a8});
+  for(let i=0;i<4;i++)for(const sx of [-1,1]){
+    const z=0.75-i*6.5, x=sx*6.1;
+    const cord=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,3.4),lampMat); cord.position.set(x,14.6,z); scene.add(cord);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.65,0.09,8,16),lampMat); ring.rotation.x=Math.PI/2; ring.position.set(x,12.9,z); scene.add(ring);
+    for(let k=0;k<6;k++){
+      const a=k/6*Math.PI*2;
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,8),glowMat);
+      bulb.position.set(x+Math.cos(a)*0.65,12.75,z+Math.sin(a)*0.65); scene.add(bulb);
+    }
+  }
+}
+
+/* ================= walls with pilasters, arches, windows, art ================= */
+const wallH=17;
+for(const sx of [-1,1]){
+  const wall=new THREE.Mesh(new THREE.BoxGeometry(1.4,wallH,64),stoneMat);
+  wall.position.set(sx*11.8,wallH/2,-14); wall.receiveShadow=true; scene.add(wall);
+  const inner=sx*11.0;
+  // pilasters between arches
+  for(let i=0;i<6;i++){
+    const z=7.25-i*6.5;
+    const pil=new THREE.Mesh(new THREE.BoxGeometry(0.5,15,1.1),stoneMat);
+    pil.position.set(sx*11.2,7.5,z); scene.add(pil);
+    const pcap=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,1.3),darkStone);
+    pcap.position.set(sx*11.2,14.2,z); scene.add(pcap);
+  }
+  // arch moldings
+  for(let i=0;i<5;i++){
+    const z=4-i*6.5;
+    const arch=new THREE.Mesh(new THREE.TorusGeometry(3.4,0.32,8,24,Math.PI),darkStone);
+    arch.position.set(sx*10.9,13.4,z); arch.rotation.y=Math.PI/2; scene.add(arch);
+  }
+  // clerestory stained-glass windows (upper)
+  for(let i=0;i<5;i++){
+    const z=4-i*6.5;
+    const win=new THREE.Mesh(new THREE.PlaneGeometry(1.7,3.6),glassMat);
+    win.position.set(inner-0.05*sx,12.6,z); win.rotation.y=-sx*Math.PI/2; scene.add(win);
+    const frame=new THREE.Mesh(new THREE.BoxGeometry(0.25,4.0,2.1),darkStone);
+    frame.position.set(sx*11.05,12.6,z); scene.add(frame);
+  }
+  // aisle tall windows (lower, between arches)
+  for(let i=0;i<4;i++){
+    const z=0.75-i*6.5;
+    const win=new THREE.Mesh(new THREE.PlaneGeometry(1.5,4.6),glassMat);
+    win.position.set(inner-0.05*sx,6.4,z); win.rotation.y=-sx*Math.PI/2; scene.add(win);
+  }
+  // gold-framed paintings (stations) on wall piers
+  for(let i=0;i<4;i++){
+    const z=0.75-i*6.5;
+    const fr=new THREE.Mesh(new THREE.BoxGeometry(0.18,2.2,1.5),goldMat);
+    fr.position.set(sx*11.0,6.8,z+3.25); scene.add(fr);
+    const cv2=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.0),new THREE.MeshStandardMaterial({color:0x2a2030,roughness:0.9}));
+    cv2.position.set(sx*10.9,6.8,z+3.25); cv2.rotation.y=-sx*Math.PI/2; scene.add(cv2);
+  }
+}
+// back wall + organ loft
+{
+  const bw=new THREE.Mesh(new THREE.BoxGeometry(26,wallH,1.4),stoneMat);
+  bw.position.set(0,wallH/2,18); scene.add(bw);
+  const loft=new THREE.Mesh(new THREE.BoxGeometry(16,0.8,4),darkStone);
+  loft.position.set(0,9,15.6); scene.add(loft);
+  const rail=new THREE.Mesh(new THREE.BoxGeometry(16,1.0,0.15),woodMat);
+  rail.position.set(0,9.9,13.7); scene.add(rail);
+  // rose window
+  const rose=new THREE.Mesh(new THREE.CircleGeometry(2.2,24),glassMat);
+  rose.position.set(0,13.5,17.28); rose.rotation.y=Math.PI; scene.add(rose);
+}
+
+/* ================= vaulted ceiling ================= */
+{
+  const geo=new THREE.CylinderGeometry(11.9,11.9,64,28,1,true,Math.PI,Math.PI);
+  const mat=new THREE.MeshStandardMaterial({map:vaultTex,side:THREE.BackSide,roughness:0.85});
+  const vault=new THREE.Mesh(geo,mat);
+  vault.rotation.x=Math.PI/2; vault.rotation.z=Math.PI/2;
+  vault.position.set(0,11.9,-14); scene.add(vault);
+  // transverse ribs
+  for(let i=0;i<6;i++){
+    const rib=new THREE.Mesh(new THREE.TorusGeometry(11.9,0.22,8,28,Math.PI),darkStone);
+    rib.position.set(0,11.9,7-i*10.5); rib.rotation.y=Math.PI/2; scene.add(rib);
+  }
+}
+
+/* ================= sanctuary ================= */
+const plat=new THREE.Mesh(new THREE.BoxGeometry(21,1.0,11),darkStone);
+plat.position.set(0,0.5,-27.5); plat.receiveShadow=true; scene.add(plat);
 for(let s=0;s<3;s++){
-  const step = new THREE.Mesh(new THREE.BoxGeometry(8-s*1.5, 0.33, 1.2), stoneMat);
-  step.position.set(0, 0.16+s*0.33, -21.2+s*1.1); scene.add(step);
+  const step=new THREE.Mesh(new THREE.BoxGeometry(9-s*1.6,0.33,1.3),stoneMat);
+  step.position.set(0,0.16+s*0.33,-21.4+s*1.15); scene.add(step);
+}
+// communion rail (white balustrade)
+{
+  const railMat=whiteMarble;
+  const top=new THREE.Mesh(new THREE.BoxGeometry(16,0.14,0.5),railMat);
+  top.position.set(0,2.05,-22.2); top.castShadow=true; scene.add(top);
+  for(let i=0;i<=16;i++){
+    const b=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.1,0.95,6),railMat);
+    b.position.set(-8+i,1.5,-22.2); scene.add(b);
+  }
+  const baseR=new THREE.Mesh(new THREE.BoxGeometry(16,0.18,0.4),railMat);
+  baseR.position.set(0,1.05,-22.2); scene.add(baseR);
 }
 
-// ---------- baldachin (canopy over altar) ----------
-// opening ~3.54m wide x 4.36m tall (11.6 x 14.3 ft)
-const bald = new THREE.Group();
-const bColGeo = new THREE.CylinderGeometry(0.28, 0.34, 6.4, 10);
-for(const [bx,bz] of [[-2.1,-28.6],[2.1,-28.6],[-2.1,-25.4],[2.1,-25.4]]){
-  const c = new THREE.Mesh(bColGeo, whiteMarble); c.position.set(bx, 1+3.2, bz); c.castShadow=true; bald.add(c);
-  const cb = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.9), darkStone); cb.position.set(bx,1.25,bz); bald.add(cb);
+/* ================= baldachin (white marble) ================= */
+const bald=new THREE.Group();
+{
+  const cGeo=new THREE.CylinderGeometry(0.26,0.33,6.6,12);
+  for(const [bx,bz] of [[-2.1,-29.1],[2.1,-29.1],[-2.1,-25.9],[2.1,-25.9]]){
+    const c=new THREE.Mesh(cGeo,whiteMarble); c.position.set(bx,1+3.3,bz); c.castShadow=true; bald.add(c);
+    const cb=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.55,0.95),whiteMarble); cb.position.set(bx,1.28,bz); bald.add(cb);
+    const cc=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.4,0.8),goldMat); cc.position.set(bx,1+6.6+0.2,bz); bald.add(cc);
+  }
+  const ent=new THREE.Mesh(new THREE.BoxGeometry(5.7,1.0,4.5),whiteMarble);
+  ent.position.set(0,1+6.6+0.5,-27.5); ent.castShadow=true; bald.add(ent);
+  const trim=new THREE.Mesh(new THREE.BoxGeometry(5.9,0.22,4.7),goldMat);
+  trim.position.set(0,1+6.6+1.05,-27.5); bald.add(trim);
+  const ped=new THREE.Mesh(new THREE.CylinderGeometry(0.02,3.15,1.7,4,1),whiteMarble);
+  ped.rotation.y=Math.PI/4; ped.scale.set(1,1,0.8); ped.position.set(0,1+6.6+1.0+0.85,-27.5); bald.add(ped);
+  for(const sx of [-1.95,1.95]){
+    const an=new THREE.Mesh(new THREE.ConeGeometry(0.34,1.5,6),whiteMarble);
+    an.position.set(sx,1+6.6+1.0+1.7+0.75,-27.5); bald.add(an);
+  }
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.62,1.3,8),whiteMarble);
+  sh.position.set(0,1+6.6+1.0+1.7+0.65,-27.5); bald.add(sh);
+  const domeS=new THREE.Mesh(new THREE.SphereGeometry(0.55,10,8,0,Math.PI*2,0,Math.PI/2),goldMat);
+  domeS.position.set(0,1+6.6+1.0+1.7+1.3,-27.5); bald.add(domeS);
+  const altar=new THREE.Mesh(new THREE.BoxGeometry(2.7,1.2,1.15),whiteMarble);
+  altar.position.set(0,1+0.6,-27.5); altar.castShadow=true; bald.add(altar);
+  const cloth=new THREE.Mesh(new THREE.BoxGeometry(2.75,0.08,1.2),new THREE.MeshStandardMaterial({color:0xf2ede2,roughness:0.9}));
+  cloth.position.set(0,1+1.24,-27.5); bald.add(cloth);
 }
-const entab = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.9, 4.4), whiteMarble);
-entab.position.set(0, 1+6.4+0.45, -27); entab.castShadow=true; bald.add(entab);
-const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 3.1, 1.6, 4, 1), whiteMarble);
-ped.rotation.y = Math.PI/4; ped.scale.set(1,1,0.78); ped.position.set(0, 1+6.4+0.9+0.8, -27); bald.add(ped);
-// angel statues on pediment corners (stylized)
-for(const sx of [-1.9, 1.9]){
-  const angel = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.4, 6), whiteMarble);
-  angel.position.set(sx, 1+6.4+0.9+1.6+0.7, -27); bald.add(angel);
-}
-// central shrine on top
-const shrine = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.2,8), whiteMarble);
-shrine.position.set(0, 1+6.4+0.9+1.6+0.6, -27); bald.add(shrine);
-// altar block
-const altar = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.15, 1.1), whiteMarble);
-altar.position.set(0, 1+0.57, -27); altar.castShadow=true; bald.add(altar);
 scene.add(bald);
 
-// ---------- apse: semi-circular sanctuary wall + half-dome mosaic ----------
+/* ================= apse + half-dome mosaic ================= */
 {
-  const apseMat = new THREE.MeshStandardMaterial({color:0xb09a72, roughness:0.85, side:THREE.BackSide});
-  const apseWall = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 12, 24, 1, true, 0, Math.PI), apseMat);
-  apseWall.rotation.y = Math.PI/2; apseWall.position.set(0, 6, -30); scene.add(apseWall);
-  // half-dome with mosaic-ish radial texture
-  const cv2 = document.createElement('canvas'); cv2.width=256; cv2.height=128;
-  const g2 = cv2.getContext('2d');
-  const grad = g2.createRadialGradient(128,128,8,128,128,128);
-  grad.addColorStop(0,'#e8c76a'); grad.addColorStop(0.4,'#a8842e'); grad.addColorStop(1,'#4a3a1a');
-  g2.fillStyle=grad; g2.fillRect(0,0,256,128);
-  g2.fillStyle='#7a5c1e';
-  for(let i=0;i<12;i++){ const a=Math.PI*i/12; g2.beginPath(); g2.moveTo(128,128); g2.lineTo(128+Math.cos(a)*120,128-Math.sin(a)*120); g2.stroke(); }
-  const domeTex = new THREE.CanvasTexture(cv2);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(7.5, 24, 12, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshStandardMaterial({map:domeTex, side:THREE.BackSide, roughness:0.9}));
-  dome.rotation.y = Math.PI/2; dome.position.set(0, 12, -30); scene.add(dome);
+  const apseMat=new THREE.MeshStandardMaterial({color:0xb59c72,roughness:0.85,side:THREE.BackSide});
+  const w=new THREE.Mesh(new THREE.CylinderGeometry(8,8,13,28,1,true,0,Math.PI),apseMat);
+  w.rotation.y=Math.PI/2; w.position.set(0,6.5,-31); scene.add(w);
+  const cv2=document.createElement('canvas'); cv2.width=256; cv2.height=128;
+  const g2=cv2.getContext('2d');
+  const gr=g2.createRadialGradient(128,128,10,128,128,130);
+  gr.addColorStop(0,'#e8c76a'); gr.addColorStop(0.45,'#a8842e'); gr.addColorStop(1,'#4a3a1a');
+  g2.fillStyle=gr; g2.fillRect(0,0,256,128);
+  g2.strokeStyle='#7a5c1e'; g2.lineWidth=2;
+  for(let i=0;i<=12;i++){ const a=Math.PI*i/12; g2.beginPath(); g2.moveTo(128,128); g2.lineTo(128+Math.cos(a)*126,128-Math.sin(a)*126); g2.stroke(); }
+  // christ figure hint
+  g2.fillStyle='rgba(255,240,200,0.85)';
+  g2.beginPath(); g2.arc(128,86,20,0,7); g2.fill(); g2.fillRect(112,86,32,34);
+  const dt=new THREE.CanvasTexture(cv2); dt.colorSpace=THREE.SRGBColorSpace;
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(8,28,14,0,Math.PI*2,0,Math.PI/2),
+    new THREE.MeshStandardMaterial({map:dt,side:THREE.BackSide,roughness:0.9}));
+  dome.rotation.y=Math.PI/2; dome.position.set(0,13,-31); scene.add(dome);
+  // apse stained glass windows
+  for(let i=-1;i<=1;i++){
+    const a=Math.PI/2 + i*0.5;
+    const win=new THREE.Mesh(new THREE.PlaneGeometry(1.6,3.4),glassMat);
+    win.position.set(Math.cos(a)*7.7, 8.5, -31-Math.sin(a)*7.7);
+    win.rotation.y=-a+Math.PI/2; scene.add(win);
+  }
 }
 
-// ---------- center screen 150" 16:9 (3.32 x 1.87 m) inside baldachin ----------
-const screenTexLoader = new THREE.TextureLoader();
-let screenMat = new THREE.MeshBasicMaterial({color:0x111111});
-const screen = new THREE.Mesh(new THREE.PlaneGeometry(3.32, 1.87), screenMat);
-screen.position.set(0, 1+2.6, -27.05); scene.add(screen);
-const screenFrame = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.05, 0.08), new THREE.MeshStandardMaterial({color:0x0a0a0a}));
-screenFrame.position.set(0, 1+2.6, -27.12); scene.add(screenFrame);
+/* ================= center screen 150" ================= */
+const texLoader=new THREE.TextureLoader();
+let screenMat=new THREE.MeshBasicMaterial({color:0x141414});
+const screenMesh=new THREE.Mesh(new THREE.PlaneGeometry(3.32,1.87),screenMat);
+screenMesh.position.set(0,1+2.7,-27.55); scene.add(screenMesh);
+const sFrame=new THREE.Mesh(new THREE.BoxGeometry(3.52,2.07,0.1),new THREE.MeshStandardMaterial({color:0x0a0a0a,roughness:0.6}));
+sFrame.position.set(0,1+2.7,-27.62); scene.add(sFrame);
 
-// ---------- wings: draped green fabric ----------
-// swag drape approximated with plane + sine displacement
+/* ================= wings: draped green fabric ================= */
 function makeWing(sx){
-  const geo = new THREE.PlaneGeometry(7.5, 5.2, 24, 12);
-  const pos = geo.attributes.position;
+  const geo=new THREE.PlaneGeometry(7.6,5.4,28,14);
+  const pos=geo.attributes.position;
   for(let i=0;i<pos.count;i++){
-    const x = pos.getX(i), y = pos.getY(i);
-    const u = (x+3.75)/7.5;         // 0..1 across
-    const swag = Math.sin(u*Math.PI) * -1.6;   // drape sag
-    const wave = Math.sin(u*9.0)*0.22 + Math.sin(u*23.0)*0.08;
-    pos.setZ(i, swag*0.35 + wave);
-    pos.setY(i, y + swag);
+    const x=pos.getX(i), y=pos.getY(i);
+    const u=(x+3.8)/7.6;
+    const swag=Math.sin(u*Math.PI)*-1.7;
+    const folds=Math.sin(u*10.0)*0.24+Math.sin(u*23.0)*0.09+Math.sin(u*4.0+1.0)*0.15;
+    pos.setZ(i, swag*0.3+folds);
+    pos.setY(i, y+swag);
   }
   geo.computeVertexNormals();
-  const m = new THREE.Mesh(geo, greenMat);
-  m.position.set(sx*6.4, 6.6, -26.2);
-  m.rotation.y = sx * -0.38;
-  m.castShadow = true;
-  scene.add(m);
-  return m;
+  const m=new THREE.Mesh(geo,greenMat);
+  m.position.set(sx*6.5,6.9,-26.6);
+  m.rotation.y=sx*-0.4;
+  m.castShadow=true;
+  scene.add(m); return m;
 }
-const wingL = makeWing(-1), wingR = makeWing(1);
+const wingL=makeWing(-1), wingR=makeWing(1);
 
-// ---------- projection content ----------
-// sample cue images (from the cue sheet set)
-const CUE_URLS = [
+/* ================= UI: projection content ================= */
+const CUE_URLS=[
   'https://chanaver.github.io/macc-set-viewer/img/000.webp',
   'https://chanaver.github.io/macc-set-viewer/img/018.webp',
   'https://chanaver.github.io/macc-set-viewer/img/034.webp',
   'https://chanaver.github.io/macc-set-viewer/img/038.webp',
   'https://chanaver.github.io/macc-set-viewer/img/052.webp',
 ];
-const CUE_NAMES = ['Roncesvalles 01분','Roncesvalles 18분','Burgos 16분','León 05분','Santiago 05분'];
-let cueIdx = 0, screenMode = 0; // 0: off(black), 1: image
+const CUE_NAMES=['Roncesvalles 01분','Roncesvalles 18분','Burgos 16분','León 05분','Santiago 05분'];
+let cueIdx=0, screenMode=0;
 function setCue(i){
-  cueIdx = (i+CUE_URLS.length)%CUE_URLS.length;
-  screenTexLoader.load(CUE_URLS[cueIdx], t=>{ t.colorSpace = THREE.SRGBColorSpace; screenMat.map = t; screenMat.color.set(0xffffff); screenMat.needsUpdate = true; });
-  document.getElementById('cueinfo').textContent = '큐: ' + CUE_NAMES[cueIdx];
+  cueIdx=(i+CUE_URLS.length)%CUE_URLS.length;
+  texLoader.load(CUE_URLS[cueIdx],t=>{ t.colorSpace=THREE.SRGBColorSpace; screenMat.map=t; screenMat.color.set(0xffffff); screenMat.needsUpdate=true; });
+  document.getElementById('cueinfo').textContent='큐: '+CUE_NAMES[cueIdx];
 }
-document.getElementById('bScreen').onclick = e=>{
-  screenMode = (screenMode+1)%2;
-  e.target.textContent = '스크린: ' + (screenMode? '투사 중' : '합성 전');
-  e.target.classList.toggle('on', !!screenMode);
-  if(screenMode) setCue(cueIdx); else { screenMat.map=null; screenMat.color.set(0x111111); screenMat.needsUpdate=true; document.getElementById('cueinfo').textContent=''; }
+document.getElementById('bScreen').onclick=e=>{
+  screenMode=(screenMode+1)%2;
+  e.target.textContent='스크린: '+(screenMode?'투사 중':'합성 전');
+  e.target.classList.toggle('on',!!screenMode);
+  if(screenMode) setCue(cueIdx);
+  else { screenMat.map=null; screenMat.color.set(0x141414); screenMat.needsUpdate=true; document.getElementById('cueinfo').textContent=''; }
 };
-let wingMode = 0;
-document.getElementById('bWings').onclick = e=>{
-  wingMode = (wingMode+1)%2;
-  const m = wingMode? new THREE.MeshStandardMaterial({color:0x1a1a22, roughness:0.9, side:THREE.DoubleSide}) : greenMat;
-  wingL.material = m; wingR.material = m;
-  e.target.textContent = '윙: ' + (wingMode? '투사면' : '그린스크린');
-  e.target.classList.toggle('on', !!wingMode);
+let wingMode=0;
+document.getElementById('bWings').onclick=e=>{
+  wingMode=(wingMode+1)%2;
+  const m=wingMode? new THREE.MeshStandardMaterial({color:0x15151d,roughness:0.9,side:THREE.DoubleSide}) : greenMat;
+  wingL.material=m; wingR.material=m;
+  e.target.textContent='윙: '+(wingMode?'투사면':'그린스크린');
+  e.target.classList.toggle('on',!!wingMode);
 };
-document.getElementById('bCue').onclick = ()=>{ if(screenMode) setCue(cueIdx-1); };
-document.getElementById('bCue2').onclick = ()=>{ if(screenMode) setCue(cueIdx+1); };
-document.getElementById('bTop').onclick = ()=>{ camera.position.set(0, 34, -8); controls.target.set(0,0,-16); };
-document.getElementById('bNave').onclick = ()=>{ camera.position.set(0, 4.5, 14); controls.target.set(0,5,-12); };
+document.getElementById('bCue').onclick=()=>{ if(screenMode) setCue(cueIdx-1); };
+document.getElementById('bCue2').onclick=()=>{ if(screenMode) setCue(cueIdx+1); };
+document.getElementById('bTop').onclick=()=>{ camera.position.set(0,36,-8); controls.target.set(0,0,-16); };
+document.getElementById('bNave').onclick=()=>{ camera.position.set(0,4.5,14); controls.target.set(0,5,-12); };
 
-addEventListener('resize', ()=>{
-  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+/* ================= loop ================= */
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
 });
-renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene, camera); });
+setLight(0);
+document.getElementById('loading').style.display='none';
+renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene,camera); });
 </script>
 </body>
 </html>
