@@ -36,7 +36,7 @@
     <button id="bWings">윙: 그린스크린</button>
     <button id="bCue">◀ 큐</button>
     <button id="bCue2">큐 ▶</button>
-    <button id="bTop">위에서 보기</button>
+    <button id="bClose">제단 가까이</button>
     <button id="bNave">객석에서 보기</button>
     <span id="cueinfo"></span>
   </div>
@@ -473,8 +473,9 @@ document.getElementById('bWings').onclick=e=>{
 };
 document.getElementById('bCue').onclick=()=>{ if(screenMode) setCue(cueIdx-1); };
 document.getElementById('bCue2').onclick=()=>{ if(screenMode) setCue(cueIdx+1); };
-document.getElementById('bTop').onclick=()=>{ camera.position.set(0,36,-8); controls.target.set(0,0,-16); };
+document.getElementById('bClose').onclick=()=>{ camera.position.set(0,4.2,-17); controls.target.set(0,5.5,-27); };
 document.getElementById('bNave').onclick=()=>{ camera.position.set(0,4.5,14); controls.target.set(0,5,-12); };
+controls.minDistance=2.5; controls.maxDistance=32;
 
 /* ================= loop ================= */
 addEventListener('resize',()=>{
