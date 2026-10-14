@@ -29,13 +29,13 @@
 <div id="help">드래그: 회전 · 휠: 줌 · 우드래그: 이동</div>
 <div id="hud">
   <h1>Co-Cathedral of St. Joseph — Path of Miracles 셋 3D</h1>
-  <p>발다킨 중앙 150" 스크린 + 그린스크린 윙 (실측: 개구부 11.6 × 14.3 ft)</p>
+  <p>그린스크린 윙 (실측: 개구부 11.6 × 14.3 ft, 윙 35 × 9.3 ft)</p>
   <div id="ctrl">
     <button id="bLight" class="on">조명: 공연 모드</button>
-    <button id="bScreen">스크린: 합성 전</button>
+    <!-- <button id="bScreen">스크린: 합성 전</button> -->
     <button id="bWings">윙: 그린스크린</button>
-    <button id="bCue">◀ 큐</button>
-    <button id="bCue2">큐 ▶</button>
+    <!-- <button id="bCue">◀ 큐</button> -->
+    <!-- <button id="bCue2">큐 ▶</button> -->
     <button id="bClose">제단 가까이</button>
     <button id="bNave">객석에서 보기</button>
     <span id="cueinfo"></span>
@@ -471,64 +471,47 @@ scene.add(bald);
   }
 }
 
-/* ================= center screen 150" ================= */
+/* ================= center screen REMOVED (wings only per 2026-10-14) ================= */
+/*
 const texLoader=new THREE.TextureLoader();
 let screenMat=new THREE.MeshBasicMaterial({color:0x141414});
 const screenMesh=new THREE.Mesh(new THREE.PlaneGeometry(3.32,1.87),screenMat);
 screenMesh.position.set(0,1+2.7,-27.55); scene.add(screenMesh);
 const sFrame=new THREE.Mesh(new THREE.BoxGeometry(3.52,2.07,0.1),new THREE.MeshStandardMaterial({color:0x0a0a0a,roughness:0.6}));
 sFrame.position.set(0,1+2.7,-27.62); scene.add(sFrame);
+*/
 
-/* ================= wings: draped green fabric ================= */
+/* ================= wings: draped green fabric (from user set photo) ================= */
+// No center screen — wings only. Real wings: 35ft x 9ft3in each.
+// Hung from batten at y=7.0, inner end (near baldachin) drapes lower.
 function makeWing(sx){
-  // real wings: 35 ft (10.7m) wide x 9ft 3in (2.8m) tall — long horizontal swag
-  const geo=new THREE.PlaneGeometry(10.6,2.9,36,10);
+  const SPAN=8.5, H=2.9;  // span between attachments, fabric drop
+  const geo=new THREE.PlaneGeometry(SPAN,H,40,12);
   const pos=geo.attributes.position;
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i), y=pos.getY(i);
-    const u=(x+5.3)/10.6;   // 0..1 across plane
-    // o: 0=inner(near baldachin), 1=outer(near wall)
-    const o = sx<0 ? 1-u : u;
-    // swag: outer end high, dips in middle, inner end low
-    const hang = o*2.4 - Math.sin(o*Math.PI)*1.0;
-    // fabric folds
-    const folds=Math.sin(u*14.0)*0.18+Math.sin(u*31.0)*0.07;
-    const v=(y+1.45)/2.9;   // 0=bottom, 1=top
-    pos.setY(i, y + hang*(0.35+0.65*v) - (1-v)*0.4);
-    pos.setZ(i, folds + Math.sin(o*Math.PI)*0.45);
+    const u=(x+SPAN/2)/SPAN;   // 0=inner(baldachin), 1=outer(wall)
+    const v=(y+H/2)/H;         // 0=bottom, 1=top
+    // top edge straight at batten; bottom drapes: deep catenary, inner lower
+    const drop = (1-v) * (2.0 + (1-u)*2.2 + Math.sin(u*Math.PI)*1.2);
+    // vertical fabric folds (gathered at top)
+    const folds = Math.sin(u*22.0)*0.3*(1-v*0.5) + Math.sin(u*47.0)*0.12;
+    // slight billow outward
+    const billow = Math.sin(u*Math.PI)*0.7*(1-v);
+    pos.setY(i, 7.2 - (1-v)*H*0.4 - drop*0.6);
+    pos.setZ(i, folds + billow);
   }
   geo.computeVertexNormals();
-  const m=new THREE.Mesh(geo,greenMat);
-  // spans from near baldachin (x~2.6) out to side wall (x~13.2)
-  m.position.set(sx*6.6,5.6,-26.3);
-  m.rotation.y=sx*-0.10;
+  const m=new THREE.Mesh(geo, greenMat);
+  // inner end at x=±2.5 (just outside baldachin columns at ±2.1)
+  m.position.set(sx*(2.5+SPAN/2), 0, -26.3);
+  m.rotation.y = sx>0 ? 0.06 : -0.06;
   m.castShadow=true;
   scene.add(m); return m;
 }
 const wingL=makeWing(-1), wingR=makeWing(1);
 
-/* ================= UI: projection content ================= */
-const CUE_URLS=[
-  'cues/000.webp',
-  'cues/018.webp',
-  'cues/034.webp',
-  'cues/038.webp',
-  'cues/052.webp',
-];
-const CUE_NAMES=['Roncesvalles 01분','Roncesvalles 18분','Burgos 16분','León 05분','Santiago 05분'];
-let cueIdx=0, screenMode=0;
-function setCue(i){
-  cueIdx=(i+CUE_URLS.length)%CUE_URLS.length;
-  texLoader.load(CUE_URLS[cueIdx],t=>{ t.colorSpace=THREE.SRGBColorSpace; screenMat.map=t; screenMat.color.set(0xffffff); screenMat.needsUpdate=true; });
-  document.getElementById('cueinfo').textContent='큐: '+CUE_NAMES[cueIdx];
-}
-document.getElementById('bScreen').onclick=e=>{
-  screenMode=(screenMode+1)%2;
-  e.target.textContent='스크린: '+(screenMode?'투사 중':'합성 전');
-  e.target.classList.toggle('on',!!screenMode);
-  if(screenMode) setCue(cueIdx);
-  else { screenMat.map=null; screenMat.color.set(0x141414); screenMat.needsUpdate=true; document.getElementById('cueinfo').textContent=''; }
-};
+/* center screen UI removed (wings only) */
 let wingMode=0;
 document.getElementById('bWings').onclick=e=>{
   wingMode=(wingMode+1)%2;
@@ -537,8 +520,8 @@ document.getElementById('bWings').onclick=e=>{
   e.target.textContent='윙: '+(wingMode?'투사면':'그린스크린');
   e.target.classList.toggle('on',!!wingMode);
 };
-document.getElementById('bCue').onclick=()=>{ if(screenMode) setCue(cueIdx-1); };
-document.getElementById('bCue2').onclick=()=>{ if(screenMode) setCue(cueIdx+1); };
+
+
 document.getElementById('bClose').onclick=()=>{ camera.position.set(0,1.8,-16); controls.target.set(0,5,-27); };
 document.getElementById('bNave').onclick=()=>{ camera.position.set(0,1.7,12); controls.target.set(0,4.5,-12); };
 controls.minDistance=2.5; controls.maxDistance=32;
@@ -550,7 +533,7 @@ addEventListener('resize',()=>{
 });
 setLight(0);
 document.getElementById('loading').style.display='none';
-window._cam=camera; window._ctl=controls; window._setLight=setLight; window._setCue=setCue;
+window._cam=camera; window._ctl=controls; window._setLight=setLight; 
 renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene,camera); });
 </script>
 </body>
