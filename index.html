@@ -20,7 +20,7 @@
   #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#050508;z-index:10;font-size:14px;color:#888}
 </style>
 <script type="importmap">
-{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+{"imports":{"three":"./lib/three.module.js","three/addons/":"./lib/"}}
 </script>
 </head>
 <body>
@@ -65,9 +65,9 @@ controls.maxDistance = 70;
 
 /* ================= lights (two modes) ================= */
 const ambient = new THREE.AmbientLight(0x2a3a66, 0.55); scene.add(ambient);
-const blueWash = new THREE.PointLight(0x3a5aff, 900, 95); blueWash.position.set(0, 16, -6); scene.add(blueWash);
-const warmSpot = new THREE.SpotLight(0xffb36b, 1400, 65, 0.7, 0.5);
-warmSpot.position.set(0, 14, -20); warmSpot.target.position.set(0,4,-27); scene.add(warmSpot, warmSpot.target);
+const blueWash = new THREE.PointLight(0x3a5aff, 260, 95); blueWash.position.set(0, 16, -6); scene.add(blueWash);
+const warmSpot = new THREE.SpotLight(0xffb36b, 380, 65, 0.5, 0.6);
+warmSpot.position.set(0, 15, -18); warmSpot.target.position.set(0,5,-27.5); scene.add(warmSpot, warmSpot.target);
 const housePt = new THREE.PointLight(0xffe0b0, 200, 55); housePt.position.set(0, 9, 8); scene.add(housePt);
 const daySun = new THREE.DirectionalLight(0xfff2dd, 0); daySun.position.set(20, 30, 10); scene.add(daySun);
 const dayFill = new THREE.HemisphereLight(0xfff6e6, 0x5a4a38, 0); scene.add(dayFill);
@@ -76,8 +76,8 @@ function setLight(m){
   lightMode = m;
   const perf = m===0;
   ambient.intensity = perf? 0.55 : 0.9; ambient.color.set(perf?0x2a3a66:0xfff2e0);
-  blueWash.intensity = perf? 900 : 0;
-  warmSpot.intensity = perf? 1400 : 300;
+  blueWash.intensity = perf? 260 : 0;
+  warmSpot.intensity = perf? 380 : 120;
   housePt.intensity = perf? 200 : 600;
   daySun.intensity = perf? 0 : 2.2;
   dayFill.intensity = perf? 0 : 0.9;
@@ -213,8 +213,8 @@ const colX=8;
     const ring=new THREE.Mesh(new THREE.TorusGeometry(0.65,0.09,8,16),lampMat); ring.rotation.x=Math.PI/2; ring.position.set(x,12.9,z); scene.add(ring);
     for(let k=0;k<6;k++){
       const a=k/6*Math.PI*2;
-      const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,8),glowMat);
-      bulb.position.set(x+Math.cos(a)*0.65,12.75,z+Math.sin(a)*0.65); scene.add(bulb);
+      const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),glowMat);
+      bulb.position.set(x+Math.cos(a)*0.65,12.72,z+Math.sin(a)*0.65); scene.add(bulb);
     }
   }
 }
@@ -299,15 +299,15 @@ for(const sx of [-1,1]){
 
 /* ================= vaulted ceiling ================= */
 {
-  const geo=new THREE.CylinderGeometry(11.9,11.9,64,28,1,true,Math.PI,Math.PI);
+  const geo=new THREE.CylinderGeometry(11.9,11.9,64,28,1,true,-Math.PI/2,Math.PI);
   const mat=new THREE.MeshStandardMaterial({map:vaultTex,side:THREE.BackSide,roughness:0.85});
   const vault=new THREE.Mesh(geo,mat);
-  vault.rotation.x=Math.PI/2; vault.rotation.z=Math.PI/2;
-  vault.position.set(0,11.9,-14); scene.add(vault);
+  vault.rotation.x=-Math.PI/2;
+  vault.position.set(0,14,-14); scene.add(vault);
   // transverse ribs
   for(let i=0;i<6;i++){
     const rib=new THREE.Mesh(new THREE.TorusGeometry(11.9,0.22,8,28,Math.PI),darkStone);
-    rib.position.set(0,11.9,7-i*10.5); rib.rotation.y=Math.PI/2; scene.add(rib);
+    rib.position.set(0,14,7-i*10.5); rib.rotation.y=Math.PI/2; scene.add(rib);
   }
 }
 
@@ -347,24 +347,21 @@ const bald=new THREE.Group();
   const ped=new THREE.Mesh(new THREE.CylinderGeometry(0.02,3.15,1.7,4,1),whiteMarble);
   ped.rotation.y=Math.PI/4; ped.scale.set(1,1,0.8); ped.position.set(0,1+6.6+1.0+0.85,-27.5); bald.add(ped);
   for(const sx of [-1.95,1.95]){
-    // angel: body + outstretched wings (stylized, from ref photos)
+    // angel: robed figure, wings raised upward (stylized, from ref photos)
     const ag=new THREE.Group();
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.22,0.9,4,8),whiteMarble);
-    body.position.y=0.7; ag.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(0.2,10,8),whiteMarble);
-    head.position.y=1.5; ag.add(head);
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.2,0.85,4,8),whiteMarble);
+    body.position.y=0.62; ag.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.17,10,8),whiteMarble);
+    head.position.y=1.35; ag.add(head);
     for(const wx of [-1,1]){
-      const wing=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.7),new THREE.MeshStandardMaterial({color:0xe8e2d6,roughness:0.6,side:THREE.DoubleSide}));
-      wing.position.set(wx*0.75,1.15,0);
-      wing.rotation.z=wx*0.5; wing.rotation.y=wx*0.25;
-      // feather taper
-      const wp=wing.geometry.attributes.position;
-      for(let vi=0;vi<wp.count;vi++){ if(wp.getX(vi)*wx>0.3) wp.setY(vi, wp.getY(vi)*0.4); }
-      wing.geometry.computeVertexNormals();
+      const wing=new THREE.Mesh(new THREE.PlaneGeometry(0.55,1.15),new THREE.MeshStandardMaterial({color:0xe8e2d6,roughness:0.6,side:THREE.DoubleSide}));
+      wing.position.set(wx*0.32,1.35,0);
+      wing.rotation.z=wx*-0.35;
+      wing.rotation.x=-0.15;
       ag.add(wing);
     }
     ag.position.set(sx,1+6.6+1.0+1.7,-27.5);
-    ag.rotation.y=-sx*0.35;
+    ag.rotation.y=-sx*0.3;
     bald.add(ag);
   }
   const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.62,1.3,8),whiteMarble);
@@ -390,43 +387,21 @@ scene.add(bald);
   w.rotation.y=Math.PI/2; w.position.set(0,6.5,-31); scene.add(w);
   const cv2=document.createElement('canvas'); cv2.width=512; cv2.height=256;
   const g2=cv2.getContext('2d');
-  // gold scrollwork base
-  g2.fillStyle='#8a6d2a'; g2.fillRect(0,0,512,256);
-  g2.strokeStyle='#5e4a1a'; g2.lineWidth=3;
-  for(let i=0;i<16;i++){
-    const x=(i+0.5)*32;
-    g2.beginPath(); g2.arc(x,200,22,Math.PI,0); g2.stroke();
-    g2.beginPath(); g2.arc(x,120,16,0,Math.PI*2); g2.stroke();
-  }
-  // segment dividers
-  g2.strokeStyle='#e8d48a'; g2.lineWidth=5;
-  for(let i=0;i<=8;i++){ const x=i*64; g2.beginPath(); g2.moveTo(256,256); g2.lineTo(x,0); g2.stroke(); }
-  // central Christ medallion
-  g2.fillStyle='#d4af37'; g2.beginPath(); g2.arc(256,150,52,0,7); g2.fill();
-  g2.strokeStyle='#fff2c0'; g2.lineWidth=4; g2.beginPath(); g2.arc(256,150,52,0,7); g2.stroke();
-  g2.fillStyle='#a02020'; g2.beginPath(); g2.arc(256,140,20,0,7); g2.fill(); // head
-  g2.fillStyle='#c03030'; g2.fillRect(236,150,40,44); // robe
-  g2.fillStyle='#ffe9a8'; g2.beginPath(); g2.arc(256,140,24,0,7); g2.stroke(); // halo
-  // flanking saints (stylized groups)
-  for(const sx of [120,392]){
-    g2.fillStyle='#d4af37'; g2.beginPath(); g2.arc(sx,170,40,0,7); g2.fill();
-    const robeCols=['#204080','#206020','#602080'];
-    for(let k=-1;k<=1;k++){
-      g2.fillStyle=robeCols[k+1];
-      g2.beginPath(); g2.arc(sx+k*22,160,11,0,7); g2.fill();
-      g2.fillRect(sx+k*22-9,168,18,30);
-      g2.strokeStyle='#ffe9a8'; g2.lineWidth=2.5;
-      g2.beginPath(); g2.arc(sx+k*22,160,14,0,7); g2.stroke();
-    }
-  }
-  // oculus at top
-  g2.fillStyle='#f5e6b8'; g2.beginPath(); g2.arc(256,40,30,0,7); g2.fill();
-  g2.strokeStyle='#8a6d2a'; g2.lineWidth=5; g2.beginPath(); g2.arc(256,40,30,0,7); g2.stroke();
-  g2.fillStyle='#8a5a20'; g2.beginPath(); g2.arc(256,36,12,0,7); g2.fill();
-  g2.fillRect(248,44,16,22);
+  // warm gold dome with subtle radial ribs (seen from below at distance)
+  const grd=g2.createLinearGradient(0,0,0,256);
+  grd.addColorStop(0,'#d8b96a'); grd.addColorStop(0.6,'#b08d3e'); grd.addColorStop(1,'#7a5f22');
+  g2.fillStyle=grd; g2.fillRect(0,0,512,256);
+  g2.strokeStyle='rgba(90,64,20,0.55)'; g2.lineWidth=4;
+  for(let i=0;i<=16;i++){ const x=i*32; g2.beginPath(); g2.moveTo(256,256); g2.lineTo(x,0); g2.stroke(); }
+  g2.strokeStyle='rgba(255,240,190,0.5)'; g2.lineWidth=2;
+  for(let r=40;r<250;r+=42){ g2.beginPath(); g2.arc(256,256,r,Math.PI,0); g2.stroke(); }
+  // soft glow at crown
+  const gl=g2.createRadialGradient(256,30,4,256,30,70);
+  gl.addColorStop(0,'rgba(255,246,210,0.95)'); gl.addColorStop(1,'rgba(255,246,210,0)');
+  g2.fillStyle=gl; g2.fillRect(150,0,212,120);
   const dt=new THREE.CanvasTexture(cv2); dt.colorSpace=THREE.SRGBColorSpace;
   const dome=new THREE.Mesh(new THREE.SphereGeometry(8,28,14,0,Math.PI*2,0,Math.PI/2),
-    new THREE.MeshStandardMaterial({map:dt,side:THREE.BackSide,roughness:0.9}));
+    new THREE.MeshBasicMaterial({map:dt,side:THREE.BackSide}));
   dome.rotation.y=Math.PI/2; dome.position.set(0,13,-31); scene.add(dome);
   // apse stained glass windows
   for(let i=-1;i<=1;i++){
@@ -468,11 +443,11 @@ const wingL=makeWing(-1), wingR=makeWing(1);
 
 /* ================= UI: projection content ================= */
 const CUE_URLS=[
-  'https://chanaver.github.io/macc-set-viewer/img/000.webp',
-  'https://chanaver.github.io/macc-set-viewer/img/018.webp',
-  'https://chanaver.github.io/macc-set-viewer/img/034.webp',
-  'https://chanaver.github.io/macc-set-viewer/img/038.webp',
-  'https://chanaver.github.io/macc-set-viewer/img/052.webp',
+  'cues/000.webp',
+  'cues/018.webp',
+  'cues/034.webp',
+  'cues/038.webp',
+  'cues/052.webp',
 ];
 const CUE_NAMES=['Roncesvalles 01분','Roncesvalles 18분','Burgos 16분','León 05분','Santiago 05분'];
 let cueIdx=0, screenMode=0;
@@ -508,6 +483,7 @@ addEventListener('resize',()=>{
 });
 setLight(0);
 document.getElementById('loading').style.display='none';
+window._cam=camera; window._ctl=controls; window._setLight=setLight; window._setCue=setCue;
 renderer.setAnimationLoop(()=>{ controls.update(); renderer.render(scene,camera); });
 </script>
 </body>
